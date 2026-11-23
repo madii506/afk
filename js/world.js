@@ -1,5 +1,6 @@
 // AFK world: a night lap pool that runs to the sea horizon, one empty white floaty drifting.
-// Real-time three.js: planar mirror reflections, animated caustics, ripple rings, a star sky.
+// Real-time three.js: planar mirror reflections, animated caustics, ripple rings, a star sky,
+// boats and a buoy on the horizon, a plane crossing, wind on the sea, a wake and splashes you make.
 // Scroll picks the camera shot; the loop eases toward it.
 import * as THREE from '/vendor/three.module.min.js';
 
@@ -13,7 +14,7 @@ const SKY = /* glsl */`
   float fbm2(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a * vnoise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
   float cloudAmt(vec3 d){
     if (d.y <= 0.0) return 0.0;
-    vec2 uv = d.xz / (d.y + 0.12) * 0.55 + vec2(uTime * 0.011, uTime * 0.004);
+    vec2 uv = d.xz / (d.y + 0.12) * 0.55 + vec2(uTime * 0.016, uTime * 0.006);
     float n = fbm2(uv * 1.6);
     return smoothstep(0.54, 0.84, n) * smoothstep(0.0, 0.06, d.y) * (1.0 - smoothstep(0.30, 0.66, d.y));
   }
@@ -36,6 +37,18 @@ const SKY = /* glsl */`
       s += smoothstep(0.0024, 0.0, dist) * h * (1.0 - p * p);
     }
     return s;
+  }
+  vec3 aircraft(vec3 d, float t){
+    float ph = fract(t / 84.0 + 0.58);
+    if (ph > 0.62) return vec3(0.0);
+    float p = ph / 0.62;
+    float az = mix(-1.08, 0.98, p);
+    vec3 a = normalize(vec3(sin(az), 0.16 + 0.06 * sin(p * 3.1416), -cos(az)));
+    vec3 side = normalize(vec3(cos(az), 0.0, sin(az)));
+    float w = smoothstep(0.0017, 0.0, length(d - a));
+    float strobe = step(0.93, fract(t * 0.85));
+    float red = smoothstep(0.0014, 0.0, length(d - normalize(a - side * 0.0045))) * (0.35 + 0.65 * step(0.5, fract(t * 0.55 + 0.2)));
+    return vec3(0.95, 0.97, 1.0) * w * (0.3 + strobe * 2.4) + vec3(1.0, 0.16, 0.12) * red;
   }
   vec3 skyCol(vec3 d){
     float el = d.y;
@@ -94,7 +107,7 @@ export function createWorld(canvas, opt = {}) {
   const sky = new THREE.Mesh(new THREE.SphereGeometry(3000, 48, 24), new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, uniforms: U,
     vertexShader: `varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: SKY + `varying vec3 vD; void main(){ vec3 d = normalize(vD); vec3 c = skyCol(d) + vec3(0.80, 0.88, 1.0) * starField(d, uTime) * 0.9 * (1.0 - cloudAmt(d)) + vec3(0.86, 0.92, 1.0) * meteors(d, uTime) * 1.9;
+    fragmentShader: SKY + `varying vec3 vD; void main(){ vec3 d = normalize(vD); float cl = cloudAmt(d); vec3 c = skyCol(d) + vec3(0.80, 0.88, 1.0) * starField(d, uTime) * 0.9 * (1.0 - cl) + vec3(0.86, 0.92, 1.0) * meteors(d, uTime) * 1.9 + aircraft(d, uTime) * (1.0 - cl * 0.8);
       gl_FragColor = vec4(c, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -104,10 +117,11 @@ export function createWorld(canvas, opt = {}) {
   scene.add(sky);
 
   // ---------------- sea beyond the infinity edge: analytic sky reflection
+  const seaU = { uTime: U.uTime, uBoats: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 0, 0)) } };
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(8000, 4000), new THREE.ShaderMaterial({
-    uniforms: U,
+    uniforms: seaU,
     vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: SKY + `varying vec3 vW; void main(){
+    fragmentShader: SKY + `uniform vec4 uBoats[4]; varying vec3 vW; void main(){
       vec3 V = normalize(cameraPosition - vW);
       vec2 p = vW.xz * 0.045;
       float fade = exp(-length(vW - cameraPosition) / 260.0);
@@ -116,12 +130,23 @@ export function createWorld(canvas, opt = {}) {
       g += vec2(-0.8, 0.6) * cos(dot(p, vec2(-0.8, 0.6)) * 9.0 + uTime * 0.8) * 0.012;
       g += vec2(0.9, 0.42) * cos(dot(p, vec2(0.9, 0.42)) * 17.0 + uTime * 1.3) * 0.008;
       g += vec2(-0.3, 0.95) * cos(dot(p, vec2(-0.3, 0.95)) * 29.0 + uTime * 1.9) * 0.005;
+      // wind: gusts roughen patches of the sea and drift across it
+      float gust = smoothstep(0.45, 0.85, vnoise(vW.xz * 0.011 + vec2(uTime * 0.03, uTime * 0.011)));
+      g += vec2(0.7, 0.7) * cos(dot(p, vec2(0.7, 0.7)) * 41.0 + uTime * 2.4) * 0.010 * gust;
+      g += vec2(-0.6, 0.8) * cos(dot(p, vec2(-0.6, 0.8)) * 57.0 + uTime * 3.0) * 0.008 * gust;
       vec3 N = normalize(vec3(g.x * fade, 1.0, g.y * fade));
       vec3 R = reflect(-V, N); R.y = abs(R.y);
       float F = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
       vec3 c = skyCol(R) * F + vec3(0.0015, 0.003, 0.008);
       float sg = max(dot(R, normalize(vec3(0.0, 0.03, -1.0))), 0.0);
       c += vec3(0.5, 0.72, 1.0) * (pow(sg, 600.0) * 1.3 + pow(sg, 60.0) * 0.025) * (0.4 + F);
+      for (int i = 0; i < 4; i++) {
+        vec4 b = uBoats[i];
+        if (b.w <= 0.0) continue;
+        float s = max(dot(R, normalize(b.xyz - vW)), 0.0);
+        vec3 lc = i == 3 ? vec3(0.30, 1.0, 0.62) : vec3(1.0, 0.80, 0.56);
+        c += lc * (pow(s, 20000.0) * 2.6 + pow(s, 2500.0) * 0.08) * b.w * (0.3 + F);
+      }
       gl_FragColor = vec4(c, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -153,6 +178,14 @@ export function createWorld(canvas, opt = {}) {
   const key = new THREE.DirectionalLight(0xe6edff, 3.4); key.position.set(-3, 8, 10); scene.add(key);
   const top = new THREE.DirectionalLight(0xbcd0ff, 1.4); top.position.set(2, 10, -6); scene.add(top);
   const under = new THREE.PointLight(0x3b7bff, 5.5, 4.2, 1.6); under.position.set(FLOATY.x, -0.35, FLOATY.z); scene.add(under);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const fl = { ox: 0, oz: 0, vx: 0, vz: 0, spin: 0, ang: 0 };
+  function nudge(x, z, amp) {
+    const dx = floaty.position.x - x, dz = floaty.position.z - z, d = Math.hypot(dx, dz);
+    if (d > 2.6) return;
+    const f = amp * 0.26 / (0.35 + d * d);
+    fl.vx += dx / (d + 1e-3) * f; fl.vz += dz / (d + 1e-3) * f; fl.spin += (Math.random() - 0.5) * f * 1.6;
+  }
   const rim = new THREE.PointLight(0x7aa6ff, 3.0, 9, 1.8); rim.position.set(0.5, 1.2, -11); scene.add(rim);
 
   // ---------------- pool water: mirror + glow + caustics + ripples
@@ -162,13 +195,13 @@ export function createWorld(canvas, opt = {}) {
   const waterU = {
     uTime: U.uTime, uRefl: { value: rt.texture }, uTexMat: { value: texMat },
     uFloaty: { value: FLOATY.clone() }, uPulse: { value: 0 },
-    uDrops: { value: Array.from({ length: 14 }, () => new THREE.Vector4(0, 0, -99, 0)) },
+    uDrops: { value: Array.from({ length: 24 }, () => new THREE.Vector4(0, 0, -99, 0)) },
   };
   const water = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, LEN, 1, 1), new THREE.ShaderMaterial({
     uniforms: waterU,
     vertexShader: `uniform mat4 uTexMat; varying vec3 vW; varying vec4 vRP;
       void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vRP = uTexMat * w; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: `uniform float uTime; uniform sampler2D uRefl; uniform vec3 uFloaty; uniform float uPulse; uniform vec4 uDrops[14];
+    fragmentShader: `uniform float uTime; uniform sampler2D uRefl; uniform vec3 uFloaty; uniform float uPulse; uniform vec4 uDrops[24];
       varying vec3 vW; varying vec4 vRP;
       vec2 h22(vec2 p){ p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }
       float cell(vec2 p, float t){
@@ -197,20 +230,25 @@ export function createWorld(canvas, opt = {}) {
         float k = 6.2831 / 0.46, ph = k * r - uTime * 2.1;
         float env = exp(-r / 2.8) * smoothstep(0.62, 0.95, r) * (1.0 + uPulse * 2.5);
         vec2 g = q / r * cos(ph) * k * env * 0.0055;
-        // every trade lands as a drop: a ring that runs out and fades
-        for (int i = 0; i < 14; i++) {
+        // every trade lands as a drop: a ring that runs out and fades (and catches a little light)
+        float rings = 0.0;
+        for (int i = 0; i < 24; i++) {
           vec4 d = uDrops[i];
           float age = uTime - d.z;
           if (age < 0.0 || age > 4.5 || d.w <= 0.0) continue;
           vec2 dq = vW.xz - d.xy; float dr = length(dq) + 1e-4;
           float x = dr - (0.62 * age + 0.04);
-          float w = 0.07 + 0.05 * age;
+          float w = 0.085 + 0.055 * age;
           float a = d.w * exp(-age * 0.95) * exp(-x * x / (2.0 * w * w));
           float kk = 6.2831 / 0.2;
           g += dq / dr * cos(kk * x) * kk * a * 0.0040;
+          rings += a * max(cos(kk * x), 0.0);
         }
         float dist = length(vW - cameraPosition);
         g += waves(vW.xz, uTime) * (0.55 + 0.45 * smoothstep(30.0, 4.0, dist));
+        // a long, slow swell sliding toward the infinity edge
+        float swl = sin(vW.z * 0.85 + uTime * 1.15 + sin(vW.x * 0.7 + uTime * 0.3) * 0.5);
+        g += vec2(0.06, 1.0) * swl * 0.006 * (0.65 + 0.35 * sin(uTime * 0.23));
         vec3 N = normalize(vec3(-g.x, 1.0, -g.y));
         float z = -vW.z;
         float glow = exp(-pow((z - 7.6) / 7.5, 2.0)) * 1.0 + 0.08;
@@ -230,6 +268,7 @@ export function createWorld(canvas, opt = {}) {
         vec3 Rr = reflect(-V, N);
         float sg = max(dot(Rr, normalize(vec3(0.0, 0.03, -1.0))), 0.0);
         col += vec3(0.55, 0.75, 1.0) * (pow(sg, 900.0) * 2.4 + pow(sg, 110.0) * 0.045) * (0.35 + F);
+        col += vec3(0.55, 0.74, 1.0) * rings * 0.30;
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -266,6 +305,79 @@ export function createWorld(canvas, opt = {}) {
     renderer.setRenderTarget(rt); renderer.clear(); renderer.render(scene, vCam); renderer.setRenderTarget(null);
     renderer.toneMapping = tm;
     water.visible = true; sea.visible = true;
+  }
+
+  // ---------------- lights on the horizon: three boats drifting, one green buoy blinking
+  const LIGHTS = [
+    { x: -120, z: -300, y: -4.7, v: 3.0, c: [1.0, 0.82, 0.58], s: 2.6 },
+    { x: 170, z: -520, y: -4.6, v: -2.2, c: [1.0, 0.86, 0.66], s: 2.2 },
+    { x: -60, z: -900, y: -4.5, v: 1.5, c: [1.0, 0.9, 0.76], s: 1.8 },
+    { x: -34, z: -240, y: -5.2, v: 0, c: [0.34, 1.0, 0.64], s: 3.0, flash: 4.2 },
+  ];
+  const lPos = new Float32Array(12), lCol = new Float32Array(12), lInt = new Float32Array(4), lSize = new Float32Array(4);
+  LIGHTS.forEach((L, i) => { lCol.set(L.c, i * 3); lSize[i] = L.s; });
+  const lGeo = new THREE.BufferGeometry();
+  lGeo.setAttribute('position', new THREE.BufferAttribute(lPos, 3));
+  lGeo.setAttribute('lcol', new THREE.BufferAttribute(lCol, 3));
+  lGeo.setAttribute('inten', new THREE.BufferAttribute(lInt, 1));
+  lGeo.setAttribute('psize', new THREE.BufferAttribute(lSize, 1));
+  const lamps = new THREE.Points(lGeo, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, uniforms: { uDpr: { value: DPR } },
+    vertexShader: `attribute vec3 lcol; attribute float inten; attribute float psize; uniform float uDpr; varying vec3 vC; varying float vI;
+      void main(){ vC = lcol; vI = inten; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_PointSize = psize * uDpr * (0.8 + 0.45 * inten); }`,
+    fragmentShader: `varying vec3 vC; varying float vI; void main(){ float d = length(gl_PointCoord - 0.5); if (d > 0.5 || vI <= 0.001) discard;
+      gl_FragColor = vec4(vC, smoothstep(0.5, 0.12, d) * vI); }`,
+  }));
+  lamps.frustumCulled = false; scene.add(lamps);
+  function stepLamps(t) {
+    LIGHTS.forEach((L, i) => {
+      let x = L.x;
+      if (L.v) { const span = 2.6 * Math.abs(L.z); x = ((L.x + L.v * t + span / 2) % span + span) % span - span / 2; }
+      let I = 0.82 + 0.18 * Math.sin(t * (1.1 + i * 0.7) + i * 2.1);
+      if (L.flash) { const ph = (t % L.flash) / L.flash; I = ph < 0.07 ? 1 : ph < 0.12 ? (0.12 - ph) / 0.05 : 0; }
+      lPos[i * 3] = x; lPos[i * 3 + 1] = L.y; lPos[i * 3 + 2] = L.z; lInt[i] = I;
+      seaU.uBoats.value[i].set(x, L.y, L.z, I);
+    });
+    lGeo.attributes.position.needsUpdate = true; lGeo.attributes.inten.needsUpdate = true;
+  }
+
+  // ---------------- splash droplets: clicks throw water up, it falls back in rings
+  const NP = mobile ? 80 : 160;
+  const sp = { pos: new Float32Array(NP * 3), vel: new Float32Array(NP * 3), life: new Float32Array(NP), i: 0, live: 0 };
+  const spGeo = new THREE.BufferGeometry();
+  spGeo.setAttribute('position', new THREE.BufferAttribute(sp.pos, 3));
+  spGeo.setAttribute('life', new THREE.BufferAttribute(sp.life, 1));
+  const spMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, uniforms: { uScale: { value: 600 } },
+    vertexShader: `attribute float life; uniform float uScale; varying float vL;
+      void main(){ vL = life; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv;
+        gl_PointSize = life > 0.0 ? clamp(0.03 * uScale / max(-mv.z, 0.1), 1.0, 7.0) : 0.0; }`,
+    fragmentShader: `varying float vL; void main(){ float d = length(gl_PointCoord - 0.5); if (d > 0.5 || vL <= 0.0) discard;
+      gl_FragColor = vec4(0.82, 0.91, 1.0, smoothstep(0.5, 0.18, d) * clamp(vL * 2.5, 0.0, 1.0) * 0.9); }`,
+  });
+  const spray = new THREE.Points(spGeo, spMat); spray.frustumCulled = false; scene.add(spray);
+  function splash(x, z, n, pw) {
+    for (let k = 0; k < n; k++) {
+      const i = sp.i++ % NP, j = i * 3, a = Math.random() * 6.2832, r = (0.22 + Math.random() * 0.55) * pw;
+      sp.pos[j] = x + Math.cos(a) * 0.04; sp.pos[j + 1] = 0.02; sp.pos[j + 2] = z + Math.sin(a) * 0.04;
+      sp.vel[j] = Math.cos(a) * r; sp.vel[j + 1] = (1.3 + Math.random() * 1.7) * pw; sp.vel[j + 2] = Math.sin(a) * r;
+      sp.life[i] = 1;
+    }
+    sp.live = 1;
+  }
+  function stepSpray(dt) {
+    if (!sp.live) return;
+    let any = 0;
+    for (let i = 0; i < NP; i++) {
+      if (sp.life[i] <= 0) continue;
+      any = 1; const j = i * 3;
+      sp.vel[j + 1] -= 9.8 * dt;
+      sp.pos[j] += sp.vel[j] * dt; sp.pos[j + 1] += sp.vel[j + 1] * dt; sp.pos[j + 2] += sp.vel[j + 2] * dt;
+      sp.life[i] -= dt * 0.9;
+      if (sp.pos[j + 1] < 0 && sp.vel[j + 1] < 0) { if (Math.random() < 0.35) addDrop(sp.pos[j], sp.pos[j + 2], 0.22); sp.life[i] = 0; }
+    }
+    spGeo.attributes.position.needsUpdate = true; spGeo.attributes.life.needsUpdate = true;
+    sp.live = any;
   }
 
   // ---------------- camera shots
@@ -310,12 +422,14 @@ export function createWorld(canvas, opt = {}) {
 
   let nextDrop = 0, dropI = 0;
   function addDrop(x, z, amp) {
-    const d = waterU.uDrops.value[dropI++ % 14];
+    const d = waterU.uDrops.value[dropI++ % 24];
     d.set(x, z, U.uTime.value, amp);
   }
   function randomDrop() {
-    if (Math.random() < 0.5) addDrop(floaty.position.x + (Math.random() * 2 - 1) * 1.9, floaty.position.z + (Math.random() * 2 - 1) * 1.9, 0.7 + Math.random() * 0.5);
-    else addDrop((Math.random() * 2 - 1) * (HALF - 0.45), -(1.5 + Math.random() * 24), 0.45 + Math.random() * 0.6);
+    if (Math.random() < 0.5) {
+      const x = floaty.position.x + (Math.random() * 2 - 1) * 1.9, z = floaty.position.z + (Math.random() * 2 - 1) * 1.9, a = 0.7 + Math.random() * 0.5;
+      addDrop(x, z, a); if (a > 1.1) splash(x, z, 4, 0.55);
+    } else addDrop((Math.random() * 2 - 1) * (HALF - 0.45), -(1.5 + Math.random() * 24), 0.45 + Math.random() * 0.6);
   }
   function step(dt) {
     const t = clock.elapsedTime;
@@ -329,11 +443,19 @@ export function createWorld(canvas, opt = {}) {
     camera.lookAt(cur.t);
     sky.position.copy(camera.position);
     const bob = reduce ? 0 : Math.sin(t * 1.15) * 0.022;
-    floaty.position.set(FLOATY.x + Math.sin(t * 0.21) * 0.06, FLOATY.y + bob, FLOATY.z + Math.cos(t * 0.17) * 0.05);
-    floaty.rotation.z = t * 0.05;
+    fl.vx -= fl.ox * 0.9 * dt; fl.vz -= fl.oz * 0.9 * dt;
+    const damp = Math.pow(0.45, dt); fl.vx *= damp; fl.vz *= damp; fl.spin *= Math.pow(0.5, dt);
+    fl.ox = clamp(fl.ox + fl.vx * dt, -1.5, 1.5); fl.oz = clamp(fl.oz + fl.vz * dt, -2.5, 2.5); fl.ang += fl.spin * dt;
+    const wx = reduce ? 0 : Math.sin(t * 0.071) * 0.42, wz = reduce ? 0 : Math.sin(t * 0.053 + 1.1) * 0.55;
+    floaty.position.set(clamp(FLOATY.x + wx + Math.sin(t * 0.21) * 0.06 + fl.ox, -2.05, 2.05), FLOATY.y + bob, FLOATY.z + wz + Math.cos(t * 0.17) * 0.05 + fl.oz);
+    floaty.rotation.z = t * 0.05 + fl.ang;
+    under.position.set(floaty.position.x, -0.35, floaty.position.z);
     floaty.rotation.x = -Math.PI / 2 + Math.sin(t * 0.9) * 0.025; floaty.rotation.y = Math.cos(t * 0.7) * 0.02;
     waterU.uFloaty.value.copy(floaty.position);
     pulse *= Math.pow(0.25, dt); waterU.uPulse.value = pulse;
+    stepLamps(reduce ? 0 : t);
+    spMat.uniforms.uScale.value = H * DPR / (2 * Math.tan(camera.fov * Math.PI / 360));
+    stepSpray(dt);
   }
   function render() { reflect(); renderer.render(scene, camera); frames++; }
   function loop() {
@@ -348,14 +470,24 @@ export function createWorld(canvas, opt = {}) {
   }
   loop();
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-  function dropAt(cx, cy) {
+  function hitWater(cx, cy) {
     ndc.set(cx / W * 2 - 1, -(cy / H) * 2 + 1); ray.setFromCamera(ndc, camera);
     const hit = ray.intersectObject(water, false)[0];
-    if (!hit) return false;
-    addDrop(hit.point.x, hit.point.z, 1.35); pulse = Math.min(1.5, pulse + 0.15); return true;
+    return hit ? hit.point : null;
+  }
+  function dropAt(cx, cy) {
+    const p = hitWater(cx, cy); if (!p) return false;
+    addDrop(p.x, p.z, 1.35); pulse = Math.min(1.5, pulse + 0.15);
+    if (!reduce) splash(p.x, p.z, 12, 1); nudge(p.x, p.z, 1.4); return true;
+  }
+  let lastWake = null;
+  function wakeAt(cx, cy) {
+    const p = hitWater(cx, cy); if (!p) { lastWake = null; return false; }
+    if (lastWake && Math.hypot(p.x - lastWake.x, p.z - lastWake.z) < 0.3) return false;
+    lastWake = { x: p.x, z: p.z }; addDrop(p.x, p.z, 0.85); nudge(p.x, p.z, 0.5); return true;
   }
   return {
-    go, camera, CAMS, dropAt,
+    go, camera, CAMS, dropAt, wakeAt,
     pulse(v = 1) { pulse = Math.min(1.5, pulse + v); const n = Math.max(1, Math.round(v * 3)); for (let i = 0; i < n; i++) addDrop(floaty.position.x + (Math.random() * 2 - 1) * 1.6, floaty.position.z + (Math.random() * 2 - 1) * 1.6, 0.8 + Math.random() * 0.4); },
     settle() { cur.p.copy(goal.p); cur.t.copy(goal.t); cur.fov = goal.fov; },
     advance(sec = 1, n = 30) { for (let i = 0; i < n; i++) { clock.elapsedTime += sec / n; step(sec / n); } render(); },

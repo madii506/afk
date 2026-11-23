@@ -70,11 +70,14 @@ export function createOcean(makeCtx) {
     s.connect(f).connect(g).connect(master); s.start(t0, Math.random() * 7, 1.1);
   }
   return {
+    // Returns a promise that settles once the browser lets the sound run (right away if it's allowed,
+    // otherwise when a click or tap resumes it). Calling it again inside a gesture unlocks it.
     start() {
       if (!built) build();
-      if (ctx.state !== 'running') ctx.resume();
-      master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(0.58, ctx.currentTime, 1.4);
       on = true;
+      master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(0.58, ctx.currentTime, 1.4);
+      if (ctx.state === 'running') return Promise.resolve();
+      try { return Promise.resolve(ctx.resume()).catch(() => { }); } catch (e) { return Promise.resolve(); }
     },
     stop() {
       if (!ctx) return;
@@ -85,6 +88,7 @@ export function createOcean(makeCtx) {
     pause() { if (ctx && ctx.state === 'running') ctx.suspend(); },
     resume() { if (ctx && on && ctx.state !== 'running') ctx.resume(); },
     get on() { return on; },
+    get playing() { return on && !!ctx && ctx.state === 'running'; },
     get ctx() { return ctx; },
   };
 }

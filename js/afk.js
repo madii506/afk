@@ -1,6 +1,6 @@
 /* AFK front end. No framework, no keys: the server builds PumpSwap transactions, your wallet signs. */
-import { createWorld } from '/js/world.js?v=6';
-import { createOcean } from '/js/ocean.js?v=6';
+import { createWorld } from '/js/world.js?v=7';
+import { createOcean } from '/js/ocean.js?v=7';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -535,9 +535,11 @@ setInterval(() => { if (document.hidden) return; const fs = $$('#flow .fs'); fs.
 async function loadConfig() {
   try {
     S.cfg = await api('config');
-    if (S.cfg.ca) {
+    const box = $('#caBox');
+    if (S.cfg.ca && box) {
       const ca = esc(S.cfg.ca), xh = S.cfg.x ? (String(S.cfg.x).startsWith('http') ? S.cfg.x : 'https://x.com/' + String(S.cfg.x).replace(/^@/, '')) : '';
-      $('#caBox').innerHTML = `<div class="ca"><span class="ca-l">$AFK</span><code>${short(S.cfg.ca)}</code><button type="button" id="caCopy">Copy</button><a href="https://pump.fun/coin/${ca}" target="_blank" rel="noopener">Buy</a><a href="https://dexscreener.com/solana/${ca}" target="_blank" rel="noopener">Chart</a>${xh ? `<a href="${esc(xh)}" target="_blank" rel="noopener">X</a>` : ''}</div><p class="fine">The only $AFK contract is the one shown here.</p>`;
+      box.hidden = false;
+      box.innerHTML = `<div class="ca"><span class="ca-l">$AFK</span><code>${short(S.cfg.ca)}</code><button type="button" id="caCopy">Copy</button><a href="https://pump.fun/coin/${ca}" target="_blank" rel="noopener">Buy</a><a href="https://dexscreener.com/solana/${ca}" target="_blank" rel="noopener">Chart</a>${xh ? `<a href="${esc(xh)}" target="_blank" rel="noopener">X</a>` : ''}</div><p class="fine">The only $AFK contract is the one shown here.</p>`;
       $('#caCopy').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(S.cfg.ca).then(() => toast('Address copied')); };
     }
     if (S.cfg.feeBps && $('#feeFaq')) $('#feeFaq').innerHTML = `${(S.cfg.feeBps / 100).toFixed(1)}% of each deposit goes to AFK${S.cfg.jug ? ` (<code>${esc(S.cfg.jug)}</code>)` : ''}. Withdrawals are free. You also pay Solana's network fees and a small refundable rent for new token accounts.`;
@@ -566,24 +568,57 @@ addEventListener('pointermove', e => {
 }, { passive: true });
 $$('.btn.primary').forEach(b => b.addEventListener('pointerenter', () => { if (world) world.pulse(0.45); }));
 
-/* ---------- sound: a calm ocean, all the time (browsers need one tap first) ---------- */
+/* ---------- sound: a calm ocean, all the time ---------- */
 const ocean = createOcean();
 const sndBtn = $('#snd');
+// a test tab can open the site with ?mute and stays silent, for that tab only
+const tabMute = (() => { const q = /[?&]mute\b/.test(location.search); try { if (q) sessionStorage.setItem('afk:mute', '1'); return q || sessionStorage.getItem('afk:mute') === '1'; } catch (e) { return q; } })();
 function setSnd(on) { sndBtn.classList.toggle('on', on); sndBtn.setAttribute('aria-pressed', on ? 'true' : 'false'); sndBtn.title = on ? 'Sound off' : 'Sound on'; }
-let armed = store.get('afk:sound') !== 'off';
-const kick = e => { if (!armed || (e && e.target && e.target.closest && e.target.closest('#snd'))) return; armed = false; try { ocean.start(); setSnd(true); } catch (err) { } };
-['pointerdown', 'keydown', 'touchend'].forEach(ev => addEventListener(ev, kick, { passive: true }));
+let armed = !tabMute && store.get('afk:sound') !== 'off';
+function tryStart() {
+  let p; try { p = ocean.start(); } catch (e) { return; }
+  Promise.resolve(p).then(() => { if (armed && ocean.playing) { armed = false; setSnd(true); } });
+}
+// where the browser allows it, the ocean starts on its own as the page opens
+if (armed) setTimeout(() => { if (armed) tryStart(); }, 350);
+// everywhere else, the first click, tap or key press anywhere lets it in
+const kick = e => { if (!armed || (e && e.target && e.target.closest && e.target.closest('#snd'))) return; tryStart(); };
+['pointerdown', 'pointerup', 'mousedown', 'click', 'touchend', 'keydown'].forEach(ev => addEventListener(ev, kick, { passive: true, capture: true }));
 sndBtn.addEventListener('click', e => {
   e.stopPropagation(); armed = false;
-  if (ocean.on) { ocean.stop(); setSnd(false); store.set('afk:sound', 'off'); }
-  else { ocean.start(); setSnd(true); store.set('afk:sound', 'on'); }
+  if (ocean.playing) { ocean.stop(); setSnd(false); store.set('afk:sound', 'off'); }
+  else { store.set('afk:sound', 'on'); setSnd(true); Promise.resolve(ocean.start()).then(() => setSnd(ocean.playing)); }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) ocean.pause(); else ocean.resume(); });
 addEventListener('pointerdown', e => {
   if (!world || e.button > 0) return;
-  if (e.target.closest('a,button,input,label,summary,.board,.calc,.receipt,.step,.fs,.pcard,.stats,.risks,.connect-card,.drawer,.modal,#nav,.find,.seg,.pick,.ca-box')) return;
+  if (e.target.closest('a,button,input,label,summary,.board,.calc,.receipt,.step,.fs,.pcard,.stats,.risks,.connect-card,.drawer,.modal,#nav,.find,.seg,.pick,.ca-box,.ca')) return;
   if (world.dropAt(e.clientX, e.clientY)) ocean.plip();
 }, { passive: true });
+let wakeT = 0;
+addEventListener('pointermove', e => {
+  if (!world || reduce || (e.pointerType === 'touch' && !e.isPrimary)) return;
+  const now = performance.now(); if (now - wakeT < 45) return; wakeT = now;
+  if (e.target.closest && e.target.closest('.drawer,.modal,#nav,.board,.calc,.receipt,.pcard,.stats,.risks,.step,.fs,.facts,.away-clock,.connect-card,.find,.seg')) return;
+  world.wakeAt(e.clientX, e.clientY);
+}, { passive: true });
+
+/* eyebrows decode in like an instrument readout */
+const GLY = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+function decode(el) {
+  const fin = el.textContent, n = fin.length, t0 = performance.now();
+  const tick = now => {
+    const k = (now - t0) / 24; let out = '';
+    for (let i = 0; i < n; i++) { const c = fin[i]; out += (i < k - 7 || c === ' ' || c === '—') ? c : i < k ? GLY[(Math.random() * GLY.length) | 0] : '\u00a0'; }
+    el.textContent = out;
+    if (k < n + 8) requestAnimationFrame(tick); else el.textContent = fin;
+  };
+  requestAnimationFrame(tick);
+}
+if (!reduce) {
+  const ioE = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { ioE.unobserve(e.target); decode(e.target); } }), { threshold: 0.6 });
+  $$('.eyebrow').forEach(el => ioE.observe(el));
+}
 window.__afk.ocean = ocean;
 
 /* ---------- boot ---------- */
