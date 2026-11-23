@@ -68,12 +68,12 @@ main { position: relative; z-index: 3; }
 .steps .rv:nth-child(4) { transition-delay: .24s; }
 
 /* ---------- hero ---------- */
-.hero { position: relative; min-height: 100vh; min-height: 100svh; display: grid; place-items: start center; text-align: center; padding: clamp(110px, 21vh, 210px) 20px 140px; }
+.hero { position: relative; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; text-align: center; padding: 24px 20px; }
 .hero-in { max-width: 820px; }
 .kicker { display: inline-flex; align-items: center; gap: 9px; margin: 0 0 14px; font: 500 12px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--blue2); }
 .live { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 rgba(87, 217, 163, .6); animation: live 2.2s infinite; }
 @keyframes live { 0% { box-shadow: 0 0 0 0 rgba(87, 217, 163, .55); } 70% { box-shadow: 0 0 0 9px rgba(87, 217, 163, 0); } 100% { box-shadow: 0 0 0 0 rgba(87, 217, 163, 0); } }
-.mark { margin: 0; font: 400 clamp(84px, 14vw, 196px)/.84 'Titan', var(--sans); letter-spacing: .01em; color: #f4f6fb; }
+.mark { margin: -.097em 0 0; font: 400 clamp(84px, 14vw, 196px)/.84 'Titan', var(--sans); letter-spacing: .01em; color: #f4f6fb; }
 .mark span { display: inline-block; }
 @keyframes rise { from { opacity: 0; transform: translateY(.18em) scale(.96); filter: blur(14px); } to { opacity: 1; transform: none; filter: none; } }
 /* the letters float, and pool light runs through them: two caustic layers drifting apart + glints that flicker */
@@ -418,7 +418,7 @@ body.loading::after { content: ''; position: fixed; inset: 0; z-index: 100; back
   .links a:nth-child(n+4) { display: none; }
   #navGo { display: none; }
   #walletBtn { padding: 0 12px; }
-  .hero { padding-top: 120px; }
+  .hero { padding: 24px 16px; }
   .hero-live { bottom: 22px; gap: 8px; font-size: 12.5px; }
   .hero-live small { display: none; }
   .cue { display: none; }
