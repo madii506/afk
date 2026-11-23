@@ -6,6 +6,37 @@ import * as THREE from '/vendor/three.module.min.js';
 const SKY = /* glsl */`
   uniform float uTime;
   float hash31(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+  float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+  float h11(float n){ return fract(sin(n * 127.1) * 43758.5453); }
+  float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), u.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), u.x), u.y); }
+  float fbm2(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a * vnoise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
+  float cloudAmt(vec3 d){
+    if (d.y <= 0.0) return 0.0;
+    vec2 uv = d.xz / (d.y + 0.12) * 0.55 + vec2(uTime * 0.011, uTime * 0.004);
+    float n = fbm2(uv * 1.6);
+    return smoothstep(0.54, 0.84, n) * smoothstep(0.0, 0.06, d.y) * (1.0 - smoothstep(0.30, 0.66, d.y));
+  }
+  float meteors(vec3 d, float t){
+    float s = 0.0;
+    for (int k = 0; k < 2; k++) {
+      float P = k == 0 ? 7.0 : 11.5;
+      float tt = t / P + float(k) * 0.37;
+      float cyc = floor(tt), ph = fract(tt);
+      if (ph > 0.09) continue;
+      float p = ph / 0.09;
+      float az = (h11(cyc + float(k) * 13.0) - 0.5) * 1.5;
+      float el = 0.16 + h11(cyc * 1.7 + 3.0 + float(k)) * 0.30;
+      vec3 a = normalize(vec3(sin(az), el, -cos(az)));
+      float dir = h11(cyc * 2.3 + 7.0 + float(k)) > 0.5 ? 1.0 : -1.0;
+      vec3 trav = vec3(cos(az) * dir, -0.42, sin(az) * dir) * 0.24;
+      vec3 head = normalize(a + trav * p), tail = normalize(a + trav * max(p - 0.38, 0.0));
+      vec3 ab = head - tail; float h = clamp(dot(d - tail, ab) / max(dot(ab, ab), 1e-7), 0.0, 1.0);
+      float dist = length(d - (tail + ab * h));
+      s += smoothstep(0.0024, 0.0, dist) * h * (1.0 - p * p);
+    }
+    return s;
+  }
   vec3 skyCol(vec3 d){
     float el = d.y;
     vec3 zen = vec3(0.0030, 0.0060, 0.0170);
@@ -15,7 +46,10 @@ const SKY = /* glsl */`
     float haze = exp(-pow((el - 0.004) / 0.035, 2.0));
     float az = atan(d.x, -d.z);
     float lat = 0.72 + 0.28 * cos(az * 1.6);
-    c += vec3(0.10, 0.30, 1.00) * line * 0.95 * lat + vec3(0.020, 0.065, 0.24) * haze * 0.8;
+    float br = 0.92 + 0.08 * sin(uTime * 0.35);
+    c += vec3(0.10, 0.30, 1.00) * line * 0.95 * lat * br + vec3(0.020, 0.065, 0.24) * haze * 0.8 * br;
+    float cl = cloudAmt(d);
+    c = mix(c, c * 0.5 + vec3(0.026, 0.05, 0.12) * (0.6 + 0.4 * smoothstep(0.3, 0.0, d.y)), cl * 0.72);
     return c;
   }
   float starField(vec3 d, float t){
@@ -60,7 +94,7 @@ export function createWorld(canvas, opt = {}) {
   const sky = new THREE.Mesh(new THREE.SphereGeometry(3000, 48, 24), new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, uniforms: U,
     vertexShader: `varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: SKY + `varying vec3 vD; void main(){ vec3 d = normalize(vD); vec3 c = skyCol(d) + vec3(0.80, 0.88, 1.0) * starField(d, uTime) * 0.9;
+    fragmentShader: SKY + `varying vec3 vD; void main(){ vec3 d = normalize(vD); vec3 c = skyCol(d) + vec3(0.80, 0.88, 1.0) * starField(d, uTime) * 0.9 * (1.0 - cloudAmt(d)) + vec3(0.86, 0.92, 1.0) * meteors(d, uTime) * 1.9;
       gl_FragColor = vec4(c, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -237,8 +271,8 @@ export function createWorld(canvas, opt = {}) {
   // ---------------- camera shots
   const CAMS = {
     hero:  { p: [0.0, 1.7, -0.8],   t: [0.0, 0.6, -60],   fov: 46 },
-    away:  { p: [1.15, 1.55, -3.0], t: [0.15, 0.05, -7.4], fov: 44 },
-    away2: { p: [-0.9, 2.3, -4.2],  t: [0.2, 0.0, -7.3],  fov: 42 },
+    away:  { p: [0.9, 2.6, -2.2],   t: [-1.2, 0.6, -9.5], fov: 44 },
+    away2: { p: [2.6, 2.8, -3.2],   t: [-0.6, 0.3, -9.0], fov: 44 },
     how:   { p: [2.6, 3.4, -4.4],   t: [0.2, 0.0, -7.6],  fov: 44 },
     pools: { p: [0.0, 10.5, -6.2],  t: [0.0, 0.0, -12.5], fov: 50 },
     calc:  { p: [-2.0, 1.1, -4.6],  t: [0.25, 0.25, -7.3], fov: 44 },
@@ -280,12 +314,12 @@ export function createWorld(canvas, opt = {}) {
     d.set(x, z, U.uTime.value, amp);
   }
   function randomDrop() {
-    if (Math.random() < 0.42) addDrop(floaty.position.x + (Math.random() * 2 - 1) * 1.9, floaty.position.z + (Math.random() * 2 - 1) * 1.9, 0.7 + Math.random() * 0.5);
+    if (Math.random() < 0.5) addDrop(floaty.position.x + (Math.random() * 2 - 1) * 1.9, floaty.position.z + (Math.random() * 2 - 1) * 1.9, 0.7 + Math.random() * 0.5);
     else addDrop((Math.random() * 2 - 1) * (HALF - 0.45), -(1.5 + Math.random() * 24), 0.45 + Math.random() * 0.6);
   }
   function step(dt) {
     const t = clock.elapsedTime;
-    if (!reduce && t > nextDrop) { randomDrop(); nextDrop = t + 0.22 + Math.random() * 0.55; }
+    if (!reduce && t > nextDrop) { randomDrop(); nextDrop = t + 0.14 + Math.random() * 0.38; }
     U.uTime.value = t;
     const k = 1 - Math.pow(0.0016, dt);
     cur.p.lerp(goal.p, k); cur.t.lerp(goal.t, k); cur.fov += (goal.fov - cur.fov) * k;
@@ -313,8 +347,15 @@ export function createWorld(canvas, opt = {}) {
     raf = requestAnimationFrame(tick);
   }
   loop();
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function dropAt(cx, cy) {
+    ndc.set(cx / W * 2 - 1, -(cy / H) * 2 + 1); ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObject(water, false)[0];
+    if (!hit) return false;
+    addDrop(hit.point.x, hit.point.z, 1.35); pulse = Math.min(1.5, pulse + 0.15); return true;
+  }
   return {
-    go, camera, CAMS,
+    go, camera, CAMS, dropAt,
     pulse(v = 1) { pulse = Math.min(1.5, pulse + v); const n = Math.max(1, Math.round(v * 3)); for (let i = 0; i < n; i++) addDrop(floaty.position.x + (Math.random() * 2 - 1) * 1.6, floaty.position.z + (Math.random() * 2 - 1) * 1.6, 0.8 + Math.random() * 0.4); },
     settle() { cur.p.copy(goal.p); cur.t.copy(goal.t); cur.fov = goal.fov; },
     advance(sec = 1, n = 30) { for (let i = 0; i < n; i++) { clock.elapsedTime += sec / n; step(sec / n); } render(); },

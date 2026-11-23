@@ -1,5 +1,6 @@
 /* AFK front end. No framework, no keys: the server builds PumpSwap transactions, your wallet signs. */
-import { createWorld } from '/js/world.js?v=5';
+import { createWorld } from '/js/world.js?v=6';
+import { createOcean } from '/js/ocean.js?v=6';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -57,6 +58,7 @@ window.__afk = { world };
 
 /* ---------- scroll engine: sections drive the camera ---------- */
 const secs = $$('main > section[data-cam]');
+const mk = $('.mk'), heroIn = $('.hero-in');
 const awayEl = $('#away');
 function layout() { secs.forEach(s => { s._top = s.offsetTop; s._h = s.offsetHeight; }); }
 let lastPulse = 0, lastTx = 0;
@@ -69,6 +71,7 @@ function onScroll() {
     if (s.dataset.cam2) world.go(s.dataset.cam, s.dataset.cam2, f);
     else { const nx = secs[i + 1]; world.go(s.dataset.cam, nx ? nx.dataset.cam : s.dataset.cam, clamp((f - 0.62) / 0.38, 0, 1)); }
   }
+  if (mk) { const k = clamp(y / vh, 0, 1); mk.style.setProperty('--hy', (k * -70).toFixed(1) + 'px'); heroIn.style.opacity = (1 - k * 1.35).toFixed(3); }
   const sh = s.id === 'top' ? 0.1 + 0.32 * clamp(y / vh, 0, 1) : s.id === 'end' ? 0.14 : s.id === 'away' ? 0.3 : 0.46;
   document.documentElement.style.setProperty('--sh', sh.toFixed(3));
   $('#nav').classList.toggle('top', y < vh * 0.55);
@@ -251,12 +254,22 @@ function renderPools() {
       <span class="c-go"><button class="btn primary xs" type="button">Go AFK</button></span>
     </div>`).join('');
 }
-function renderStats() {
-  const P = S.pools; if (!P.length) return;
-  const tvl = P.reduce((a, p) => a + p.tvlSol, 0), vol = P.reduce((a, p) => a + p.volSol, 0), fees = P.reduce((a, p) => a + p.volSol * p.lpBps / 10000, 0);
-  const set = (k, v) => { const el = $(`#stats b[data-k="${k}"]`); if (el) el.innerHTML = v; };
-  set('n', P.length); set('tvl', compact(tvl) + '<small>SOL</small>'); set('vol', compact(vol) + '<small>SOL</small>'); set('fees', compact(fees) + '<small>SOL</small>');
+function tween(el, to, fmt, ms = 900) {
+  if (!el) return;
+  const from = el._v == null ? 0 : el._v; el._v = to;
+  if (reduce || from === to) { el.innerHTML = fmt(to); return; }
+  const t0 = performance.now(); cancelAnimationFrame(el._raf);
+  const tick = now => { const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3); el.innerHTML = fmt(from + (to - from) * e); if (k < 1) el._raf = requestAnimationFrame(tick); };
+  el._raf = requestAnimationFrame(tick);
 }
+let statsSeen = false;
+function renderStats() {
+  const P = S.pools; if (!P.length || !statsSeen) return;
+  const tvl = P.reduce((a, p) => a + p.tvlSol, 0), vol = P.reduce((a, p) => a + p.volSol, 0), fees = P.reduce((a, p) => a + p.volSol * p.lpBps / 10000, 0);
+  const el = k => $(`#stats b[data-k="${k}"]`), sol = v => compact(v) + '<small>SOL</small>';
+  tween(el('n'), P.length, v => Math.round(v)); tween(el('tvl'), tvl, sol, 1200); tween(el('vol'), vol, sol, 1300); tween(el('fees'), fees, sol, 1400);
+}
+new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { statsSeen = true; renderStats(); } }, { threshold: 0.3 }).observe($('#stats'));
 function renderHeroLive() {
   const p = topPool(), el = $('#heroLive'); if (!p || !el) return;
   el.innerHTML = `${tokImg(p)}<span>Top pool now</span><b>${label(p)}</b><em>${pctTxt(p.earnPerSolDay, 1)} a day</em><small>· ${compact(p.tvlSol)} SOL pool</small>`;
@@ -348,6 +361,7 @@ function renderDrawer() {
     <div class="status" id="st"></div>`;
   $$('.tabs button', el).forEach(b => b.onclick = () => { if (S.busy) return; S.tab = b.dataset.t; renderDrawer(); });
   if (p.solPool) S.tab === 'add' ? paneAdd(p, sym) : paneRemove(p, sym);
+  if (S.flash && S.flash.pool === p.pool && Date.now() - S.flash.t < 20000) { const st = $('#st'); st.className = S.flash.cls; st.innerHTML = S.flash.html; }
 }
 function moveTable(V, v, sym) {
   return `<p><b>If the price moves</b> before you withdraw, your position changes like this, before any fees earned:</p><table><tr><th>${esc(sym)}</th><th>Position</th><th>vs. ${fsol(v)} SOL in</th></tr>${[[-75, 0.25], [-50, 0.5], [100, 2], [300, 4]].map(([pc, r]) => { const lp = V * Math.sqrt(r), d = lp / v - 1; return `<tr><td>${pc > 0 ? '+' : ''}${pc}%</td><td>${fsol(lp)} SOL</td><td class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : ''}${(d * 100).toFixed(0)}%</td></tr>`; }).join('')}</table>`;
@@ -434,6 +448,7 @@ async function run(kind, body, describe, onDone) {
     total = r.txs.length; line = describe(r.quote) + (total > 1 ? ' · two signatures' : ''); draw(1);
     await signSend(r.txs, (what, s, i) => { if (s) sigs = s.slice(); if (i != null) idx = i; draw(what === 'sign' ? 1 : 2); });
     draw(3); toast(kind === 'add' ? 'You are AFK.' : 'Withdrawn.');
+    S.flash = { pool: body.pool, cls: st.className, html: st.innerHTML, t: Date.now() };
     if (onDone) onDone();
     if (world) world.pulse(1.2);
     setTimeout(() => { if (S.pool && S.pool.pool) openPool(S.pool.pool, true); loadPositions(); }, 1500);
@@ -500,7 +515,7 @@ function calcRender() {
   if (!p || !(v > 0)) { ['#cDay', '#cWeek', '#cMonth', '#cShare'].forEach(id => set(id, '—')); $('#cSim').innerHTML = ''; return; }
   const dep = v * (1 - (S.cfg.feeBps || 0) / 1e4) * (1 - p.totalBps / 2e4);
   const share = dep / (p.tvlSol + dep), day = share * p.volSol * p.lpBps / 1e4;
-  set('#cDay', fsol(day)); set('#cWeek', fsol(day * 7) + ' SOL'); set('#cMonth', fsol(day * 30) + ' SOL'); set('#cShare', pctTxt(share, 3));
+  tween($('#cDay'), day, v => fsol(v), 520); set('#cWeek', fsol(day * 7) + ' SOL'); set('#cMonth', fsol(day * 30) + ' SOL'); set('#cShare', pctTxt(share, 3));
   $('#cSim').innerHTML = moveTable(dep, v, p.symbol ? '$' + p.symbol : 'the coin');
 }
 const pickClose = () => { $('#cList').hidden = true; $('#cPick').classList.remove('open'); };
@@ -525,9 +540,51 @@ async function loadConfig() {
       $('#caBox').innerHTML = `<div class="ca"><span class="ca-l">$AFK</span><code>${short(S.cfg.ca)}</code><button type="button" id="caCopy">Copy</button><a href="https://pump.fun/coin/${ca}" target="_blank" rel="noopener">Buy</a><a href="https://dexscreener.com/solana/${ca}" target="_blank" rel="noopener">Chart</a>${xh ? `<a href="${esc(xh)}" target="_blank" rel="noopener">X</a>` : ''}</div><p class="fine">The only $AFK contract is the one shown here.</p>`;
       $('#caCopy').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(S.cfg.ca).then(() => toast('Address copied')); };
     }
-    if (S.cfg.feeBps) $('#feeFaq').innerHTML = `${(S.cfg.feeBps / 100).toFixed(1)}% of each deposit goes to AFK${S.cfg.jug ? ` (<code>${esc(S.cfg.jug)}</code>)` : ''}. Withdrawals are free. You also pay Solana's network fees and a small refundable rent for new token accounts.`;
+    if (S.cfg.feeBps && $('#feeFaq')) $('#feeFaq').innerHTML = `${(S.cfg.feeBps / 100).toFixed(1)}% of each deposit goes to AFK${S.cfg.jug ? ` (<code>${esc(S.cfg.jug)}</code>)` : ''}. Withdrawals are free. You also pay Solana's network fees and a small refundable rent for new token accounts.`;
   } catch (e) { S.cfg = { feeBps: 0 }; }
 }
+
+/* ---------- motion: words, letters, header tilt, ripples you can make ---------- */
+const ioW = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('vis'); ioW.unobserve(e.target); } }), { threshold: 0.2 });
+$$('h2:not(.endmark)').forEach(h => {
+  let i = 0;
+  const walk = n => [...n.childNodes].forEach(c => {
+    if (c.nodeType === 3) {
+      const frag = document.createDocumentFragment();
+      c.textContent.split(/(\s+)/).forEach(t => { if (!t) return; if (/^\s+$/.test(t)) frag.appendChild(document.createTextNode(t)); else { const w = document.createElement('span'); w.className = 'w'; w.style.setProperty('--i', i++); w.textContent = t; frag.appendChild(w); } });
+      c.replaceWith(frag);
+    } else if (c.nodeType === 1 && c.tagName !== 'BR') walk(c);
+  });
+  walk(h); ioW.observe(h);
+});
+$$('.risks li').forEach((li, i) => li.style.setProperty('--i', i));
+$$('.endmark span').forEach((sp, i) => sp.style.setProperty('--i', i));
+addEventListener('pointermove', e => {
+  if (!mk || scrollY > innerHeight) return;
+  const x = e.clientX / innerWidth - 0.5, y = e.clientY / innerHeight - 0.5;
+  mk.style.setProperty('--rx', (-y * 9).toFixed(2) + 'deg'); mk.style.setProperty('--ry', (x * 12).toFixed(2) + 'deg');
+}, { passive: true });
+$$('.btn.primary').forEach(b => b.addEventListener('pointerenter', () => { if (world) world.pulse(0.45); }));
+
+/* ---------- sound: a calm ocean, all the time (browsers need one tap first) ---------- */
+const ocean = createOcean();
+const sndBtn = $('#snd');
+function setSnd(on) { sndBtn.classList.toggle('on', on); sndBtn.setAttribute('aria-pressed', on ? 'true' : 'false'); sndBtn.title = on ? 'Sound off' : 'Sound on'; }
+let armed = store.get('afk:sound') !== 'off';
+const kick = e => { if (!armed || (e && e.target && e.target.closest && e.target.closest('#snd'))) return; armed = false; try { ocean.start(); setSnd(true); } catch (err) { } };
+['pointerdown', 'keydown', 'touchend'].forEach(ev => addEventListener(ev, kick, { passive: true }));
+sndBtn.addEventListener('click', e => {
+  e.stopPropagation(); armed = false;
+  if (ocean.on) { ocean.stop(); setSnd(false); store.set('afk:sound', 'off'); }
+  else { ocean.start(); setSnd(true); store.set('afk:sound', 'on'); }
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) ocean.pause(); else ocean.resume(); });
+addEventListener('pointerdown', e => {
+  if (!world || e.button > 0) return;
+  if (e.target.closest('a,button,input,label,summary,.board,.calc,.receipt,.step,.fs,.pcard,.stats,.risks,.connect-card,.drawer,.modal,#nav,.find,.seg,.pick,.ca-box')) return;
+  if (world.dropAt(e.clientX, e.clientY)) ocean.plip();
+}, { passive: true });
+window.__afk.ocean = ocean;
 
 /* ---------- boot ---------- */
 layout(); onScroll();
