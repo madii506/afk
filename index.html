@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AFK</title>
+<meta name="description" content="The onchain AFK protocol. One click puts your SOL into any pump.fun pool. Every trade pays you a cut, even while you're away.">
+<meta name="theme-color" content="#04060c">
+<link rel="icon" type="image/png" sizes="32x32" href="/img/fav-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="/img/fav-64.png">
+<link rel="apple-touch-icon" href="/img/fav-180.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="AFK">
+<meta property="og:description" content="The onchain AFK protocol. One click puts your SOL into any pump.fun pool. Every trade pays you, even while you're away.">
+<meta property="og:image" content="/img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AFK">
+<meta name="twitter:image" content="/img/og.jpg">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/titan.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/afk.css?v=5">
+</head>
+<body class="loading">
+<canvas id="world" aria-hidden="true"></canvas>
+<div class="still" aria-hidden="true"></div>
+<div class="shade" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<nav id="nav" class="top">
+  <div class="nl"></div>
+  <div class="links" id="links">
+    <a href="#how">How it works</a><a href="#pools">Pools</a><a href="#calc">Earnings</a><a href="#you">Your AFK</a><a href="#tech" class="opt">Tech</a><a href="#risk" class="opt">Risks</a><a href="#token" class="opt">$AFK</a><a href="#faq" class="opt">FAQ</a>
+  </div>
+  <div class="nr"><a class="btn primary sm" href="#pools" id="navGo">Go AFK</a><button class="btn ghost sm" id="walletBtn" type="button"><i class="wdot"></i><span id="walletLabel">Connect</span></button></div>
+</nav>
+
+<main>
+  <!-- HERO -->
+  <section id="top" class="hero" data-cam="hero">
+    <div class="hero-in">
+      <h1 class="mark rv" aria-label="AFK"><span>A</span><span>F</span><span>K</span></h1>
+      <div class="ctas rv"><a class="btn primary" href="#pools">Go AFK</a><a class="btn ghost" href="#away">See how it works</a></div>
+    </div>
+  </section>
+
+  <!-- 01 WHILE YOU WERE AWAY (scroll-scrubbed) -->
+  <section id="away" class="scrub" data-cam="away" data-cam2="away2">
+    <div class="stick">
+      <div class="away-copy">
+        <p class="eyebrow">01 — While you were away</p>
+        <h2>You log off.<br>The pool keeps trading.</h2>
+        <p class="body">Every buy and sell on a pump.fun pool pays a fee, and part of it stays in the pool for whoever supplied the liquidity. Scroll to let a day go by at <b id="awPool">the top pool</b>'s real pace.</p>
+      </div>
+      <div class="away-clock">
+        <div class="clk" aria-live="off"><span id="awH">00</span><i>:</i><span id="awM">00</span></div>
+        <div class="clk-bar"><i id="awBar"></i></div>
+        <p class="clk-l">hours AFK</p>
+        <div class="receipt" id="receipt">
+          <div class="rc-h"><span>Away report</span><span id="awSym">—</span></div>
+          <div class="rc-row"><span>Trades into the pool</span><b id="awTx">—</b></div>
+          <div class="rc-row"><span>Volume</span><b id="awVol">—</b></div>
+          <div class="rc-row"><span>Paid to liquidity <em id="awBps"></em></span><b id="awFee">—</b></div>
+          <div class="rc-row hi"><span>Your cut on 1 SOL</span><b id="awYou">—</b></div>
+          <p class="rc-f">At the last 24 hours' pace. Not a promise.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 HOW IT WORKS -->
+  <section id="how" class="band" data-cam="how">
+    <div class="wrap">
+      <div class="sec-h rv"><p class="eyebrow">02 — How it works</p><h2>Four steps. One of them is a nap.</h2></div>
+      <div class="steps">
+        <article class="step rv">
+          <div class="viz v1" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <b class="n">01</b><h3>Pick a pool</h3>
+          <p>Every pump.fun coin that graduated trades in a PumpSwap pool. Pick one from the board, or paste any coin's address.</p>
+        </article>
+        <article class="step rv">
+          <div class="viz v2" aria-hidden="true"><svg viewBox="0 0 120 64"><circle class="coin" cx="14" cy="32" r="9"/><path class="s1" d="M24 32 C 50 32, 56 14, 86 22"/><path class="s2" d="M24 32 C 50 32, 56 50, 86 42"/><rect class="pool" x="86" y="14" width="26" height="36" rx="8"/></svg></div>
+          <b class="n">02</b><h3>One click</h3>
+          <p>AFK splits your SOL. Half buys the coin, then both sides go into the pool. It's one transaction, simulated on mainnet before you sign.</p>
+        </article>
+        <article class="step rv">
+          <div class="viz v3" aria-hidden="true"><span class="ring"></span><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <b class="n">03</b><h3>Go AFK</h3>
+          <p>Every trade pays the pool's LP fee. It stays inside the pool, so your share grows on its own. Nothing to claim, nothing to watch.</p>
+        </article>
+        <article class="step rv">
+          <div class="viz v4" aria-hidden="true"><svg viewBox="0 0 120 64"><rect class="pool" x="8" y="14" width="26" height="36" rx="8"/><path class="back" d="M38 32 H 94"/><path class="head" d="M86 24 L 96 32 L 86 40"/><circle class="coin" cx="106" cy="32" r="9"/></svg></div>
+          <b class="n">04</b><h3>Come back</h3>
+          <p>Withdraw any time, straight back to SOL in one click. Your LP tokens sit in your own wallet the whole time.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 POOLS (the app) -->
+  <section id="pools" class="band app" data-cam="pools">
+    <div class="wrap">
+      <div class="sec-h rv"><p class="eyebrow">03 — Pools</p><h2>Pick a pool. Go AFK.</h2><span class="upd" id="updated"><i></i><span>Connecting to the market…</span></span></div>
+      <div class="stats rv" id="stats">
+        <div><span>Pools on the board</span><b data-k="n">—</b></div>
+        <div><span>Liquidity</span><b data-k="tvl">—</b></div>
+        <div><span>24h volume</span><b data-k="vol">—</b></div>
+        <div><span>Paid to LPs, 24h</span><b data-k="fees">—</b></div>
+      </div>
+      <div class="board-tools rv">
+        <form class="find" id="find" autocomplete="off"><input id="findIn" placeholder="Search a coin, or paste any pump.fun address" aria-label="Search or paste an address"><button class="btn primary sm" type="submit">Find</button></form>
+        <div class="seg" id="size" role="group" aria-label="Pool size"><button type="button" data-m="0">All</button><button type="button" data-m="25" class="on">25+ SOL</button><button type="button" data-m="100">100+ SOL</button></div>
+      </div>
+      <div class="board rv">
+        <div class="th" id="th"><span>Pool</span><button class="sort on" type="button" data-s="earn">Earns / day</button><button class="sort" type="button" data-s="tvl">Size</button><button class="sort" type="button" data-s="vol">24h volume</button><span class="hide-m">LP fee</span><button class="sort hide-m" type="button" data-s="chg">24h</button><span></span></div>
+        <div id="rows"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+      </div>
+      <p class="fine rv">"Earns / day" is what 1 SOL of liquidity made in fees over the last 24 hours, before price moves. Past pace, not a promise.</p>
+    </div>
+  </section>
+
+  <!-- 04 EARNINGS -->
+  <section id="calc" class="band" data-cam="calc">
+    <div class="wrap two">
+      <div class="rv">
+        <p class="eyebrow">04 — Earnings</p>
+        <h2>What a nap is worth.</h2>
+        <p class="body">Pick a pool and an amount. The numbers use that pool's real fees from the last 24 hours, and the table shows what a price move does to the position before any fees.</p>
+      </div>
+      <div class="calc rv">
+        <div class="pick" id="cPick"><button type="button" id="cPickBtn" class="pick-btn"><span id="cCur">Loading pools…</span><i class="chev"></i></button><div class="pick-list" id="cList" hidden role="listbox"></div></div>
+        <div class="amt-row"><div class="chips" id="cAmts"><button class="chip" type="button" data-v="0.5">0.5</button><button class="chip on" type="button" data-v="1">1</button><button class="chip" type="button" data-v="5">5</button><button class="chip" type="button" data-v="10">10</button></div><label class="amt"><input id="cAmt" inputmode="decimal" placeholder="Custom" aria-label="Custom SOL amount"><span>SOL</span></label></div>
+        <div class="out">
+          <div class="big"><span>Per day</span><b><em id="cDay">—</em> SOL</b></div>
+          <div><span>Per week</span><b id="cWeek">—</b></div>
+          <div><span>Per month</span><b id="cMonth">—</b></div>
+          <div><span>Your share</span><b id="cShare">—</b></div>
+        </div>
+        <div class="sim" id="cSim"></div>
+        <button class="btn primary wide" id="cGo" type="button">Go AFK in this pool</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 YOUR AFK -->
+  <section id="you" class="band" data-cam="you">
+    <div class="wrap">
+      <div class="sec-h rv"><p class="eyebrow">05 — Your AFK</p><h2>Everything you left running.</h2><button class="btn ghost sm" id="refreshPos" type="button" hidden>Refresh</button></div>
+      <div id="pos" class="rv"></div>
+    </div>
+  </section>
+
+  <!-- 06 TECH -->
+  <section id="tech" class="band" data-cam="tech">
+    <div class="wrap">
+      <div class="sec-h rv"><p class="eyebrow">06 — The tech</p><h2>One click. One transaction.</h2></div>
+      <div class="flow rv" id="flow">
+        <div class="fs"><b>1</b><h4>Wrap SOL</h4><p>Your SOL becomes wSOL for the swap.</p></div>
+        <div class="fs"><b>2</b><h4>Buy exactly enough</h4><p>An exact-out buy of the coin, sized so nothing is left over.</p></div>
+        <div class="fs"><b>3</b><h4>Deposit both sides</h4><p>Coin and SOL go into the pool. LP tokens mint to your wallet.</p></div>
+        <div class="fs"><b>4</b><h4>Refund the rest</h4><p>The wSOL account closes and any dust comes back as SOL.</p></div>
+        <span class="beam" aria-hidden="true"></span>
+      </div>
+      <div class="facts rv">
+        <div><b>Simulated first</b><p>Every transaction runs on mainnet in simulation before your wallet sees it. If it would fail, you see why instead.</p></div>
+        <div><b>Your keys only</b><p>AFK builds the transaction with the official PumpSwap SDK. Your wallet signs it. AFK never holds keys or funds.</p></div>
+        <div><b>Fits in one</b><p>Address lookup tables squeeze swap and deposit into a single transaction. If a pool needs more room, AFK splits it in two.</p></div>
+        <div><b>Lands fast</b><p>Compute and priority fees come from live network data for that pool, not a guess.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 RISKS -->
+  <section id="risk" class="band" data-cam="risk">
+    <div class="wrap two">
+      <div class="rv">
+        <p class="eyebrow">07 — What AFK can't do</p>
+        <h2>Read this part awake.</h2>
+      </div>
+      <ul class="risks rv">
+        <li><b>Prices move.</b> When the coin's price changes, your position changes with it. If the coin halves, a position is worth about 71% of what it was before fees. That's impermanent loss, and fees only offset it if trading stays busy.</li>
+        <li><b>Coins can die.</b> A pump.fun coin can lose almost all of its value. Liquidity in it goes down with it.</li>
+        <li><b>Fees follow trading.</b> "Earns / day" is the last 24 hours. Quiet days pay less.</li>
+        <li><b>Third-party program.</b> Your liquidity sits in PumpSwap, pump.fun's AMM. AFK doesn't control it.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 08 $AFK -->
+  <section id="token" class="band" data-cam="risk">
+    <div class="wrap center rv">
+      <p class="eyebrow">08 — $AFK</p>
+      <h2>The coin.</h2>
+      <div id="caBox" class="ca-box"><p class="body">The $AFK contract address goes here and on X at launch. Anyone posting one before that is not us.</p></div>
+    </div>
+  </section>
+
+  <!-- 09 FAQ -->
+  <section id="faq" class="band" data-cam="faq">
+    <div class="wrap two">
+      <div class="rv"><p class="eyebrow">09 — FAQ</p><h2>Questions, answered while you're away.</h2></div>
+      <div class="qa rv">
+        <details><summary>What is AFK?</summary><p>A front end for adding liquidity to pump.fun's PumpSwap pools in one click. You put in SOL, AFK turns it into a liquidity position in the pool you picked, and every trade in that pool pays you a cut.</p></details>
+        <details><summary>Where do the earnings come from?</summary><p>Each PumpSwap trade pays a fee. On most graduated coins 0.20% of every trade goes to the pool's liquidity providers, and on very small coins it's 0.02%. The rest goes to PumpSwap and the coin's creator. Your share of the LP fee is your share of the pool.</p></details>
+        <details><summary>Do I need to claim anything?</summary><p>No. The LP fee stays inside the pool, so each LP token is backed by a little more SOL and coin after every trade. You collect when you withdraw.</p></details>
+        <details><summary>Can I lose money?</summary><p>Yes. If the coin's price moves, your position moves with it, and a coin that dumps takes its liquidity down too. The earnings table shows the price-move math before you add anything.</p></details>
+        <details><summary>Is it custodial?</summary><p>No. The server builds and simulates the transaction, your wallet signs it, and the LP tokens land in your wallet. AFK never sees a private key.</p></details>
+        <details><summary>What does AFK charge?</summary><p id="feeFaq">Nothing. You pay Solana's network fees and a small refundable rent for new token accounts. Swaps inside the one-click deposit pay PumpSwap's normal trade fee.</p></details>
+        <details><summary>Which pools work?</summary><p>Every pump.fun coin's canonical PumpSwap pool that's paired with SOL. Coins still on the bonding curve have no pool yet.</p></details>
+        <details><summary>Does it work on my phone?</summary><p>Open the site inside Phantom's or Solflare's in-app browser, then connect.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- END -->
+  <section id="end" class="end" data-cam="end">
+    <div class="end-in rv">
+      <h2 class="endmark">Go AFK.</h2>
+      <p class="body">Put SOL in a pool, close the tab, live your life.</p>
+      <a class="btn primary" href="#pools">Pick a pool</a>
+    </div>
+  </section>
+</main>
+
+<!-- drawer: deposit / withdraw -->
+<div class="veil" id="veil" hidden></div>
+<aside class="drawer" id="drawer" aria-hidden="true" aria-label="Pool">
+  <button class="x" id="dClose" type="button" aria-label="Close">✕</button>
+  <div id="dIn"></div>
+</aside>
+
+<!-- wallet picker -->
+<div class="modal" id="wModal" hidden>
+  <div class="mbox" role="dialog" aria-modal="true" aria-labelledby="wTitle">
+    <button class="x" id="wClose" type="button" aria-label="Close">✕</button>
+    <h3 id="wTitle">Connect a wallet</h3>
+    <div id="wList"></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="/js/afk.js?v=5"></script>
+</body>
+</html>
