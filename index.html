@@ -12,13 +12,14 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="AFK">
 <meta property="og:description" content="The onchain AFK protocol. One click puts your SOL into any pump.fun pool. Every trade pays you, even while you're away.">
-<meta property="og:image" content="/img/og.jpg">
+<meta property="og:url" content="https://afk-fawn.vercel.app/">
+<meta property="og:image" content="https://afk-fawn.vercel.app/img/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="AFK">
-<meta name="twitter:image" content="/img/og.jpg">
+<meta name="twitter:image" content="https://afk-fawn.vercel.app/img/og.jpg">
 <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/titan.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/afk.css?v=5">
+<link rel="stylesheet" href="/css/afk.css?v=6">
 </head>
 <body class="loading">
 <canvas id="world" aria-hidden="true"></canvas>
@@ -29,7 +30,7 @@
 <nav id="nav" class="top">
   <div class="nl"></div>
   <div class="links" id="links">
-    <a href="#how">How it works</a><a href="#pools">Pools</a><a href="#calc">Earnings</a><a href="#you">Your AFK</a><a href="#tech" class="opt">Tech</a><a href="#risk" class="opt">Risks</a><a href="#token" class="opt">$AFK</a><a href="#faq" class="opt">FAQ</a>
+    <a href="#how">How it works</a><a href="#pools">Pools</a><a href="#calc">Earnings</a><a href="#you">Your AFK</a><a href="#tech" class="opt">Tech</a><a href="#risk" class="opt">Risks</a><a href="#token" class="opt">$AFK</a>
   </div>
   <div class="nr"><a class="btn primary sm" href="#pools" id="navGo">Go AFK</a><button class="btn ghost sm" id="walletBtn" type="button"><i class="wdot"></i><span id="walletLabel">Connect</span></button></div>
 </nav>
@@ -38,7 +39,7 @@
   <!-- HERO -->
   <section id="top" class="hero" data-cam="hero">
     <div class="hero-in">
-      <h1 class="mark rv" aria-label="AFK"><span>A</span><span>F</span><span>K</span></h1>
+      <h1 class="mark rv" aria-label="AFK"><b class="mk"><span>A</span><span>F</span><span>K</span></b></h1>
       <div class="ctas rv"><a class="btn primary" href="#pools">Go AFK</a><a class="btn ghost" href="#away">See how it works</a></div>
     </div>
   </section>
@@ -194,27 +195,10 @@
     </div>
   </section>
 
-  <!-- 09 FAQ -->
-  <section id="faq" class="band" data-cam="faq">
-    <div class="wrap two">
-      <div class="rv"><p class="eyebrow">09 — FAQ</p><h2>Questions, answered while you're away.</h2></div>
-      <div class="qa rv">
-        <details><summary>What is AFK?</summary><p>A front end for adding liquidity to pump.fun's PumpSwap pools in one click. You put in SOL, AFK turns it into a liquidity position in the pool you picked, and every trade in that pool pays you a cut.</p></details>
-        <details><summary>Where do the earnings come from?</summary><p>Each PumpSwap trade pays a fee. On most graduated coins 0.20% of every trade goes to the pool's liquidity providers, and on very small coins it's 0.02%. The rest goes to PumpSwap and the coin's creator. Your share of the LP fee is your share of the pool.</p></details>
-        <details><summary>Do I need to claim anything?</summary><p>No. The LP fee stays inside the pool, so each LP token is backed by a little more SOL and coin after every trade. You collect when you withdraw.</p></details>
-        <details><summary>Can I lose money?</summary><p>Yes. If the coin's price moves, your position moves with it, and a coin that dumps takes its liquidity down too. The earnings table shows the price-move math before you add anything.</p></details>
-        <details><summary>Is it custodial?</summary><p>No. The server builds and simulates the transaction, your wallet signs it, and the LP tokens land in your wallet. AFK never sees a private key.</p></details>
-        <details><summary>What does AFK charge?</summary><p id="feeFaq">Nothing. You pay Solana's network fees and a small refundable rent for new token accounts. Swaps inside the one-click deposit pay PumpSwap's normal trade fee.</p></details>
-        <details><summary>Which pools work?</summary><p>Every pump.fun coin's canonical PumpSwap pool that's paired with SOL. Coins still on the bonding curve have no pool yet.</p></details>
-        <details><summary>Does it work on my phone?</summary><p>Open the site inside Phantom's or Solflare's in-app browser, then connect.</p></details>
-      </div>
-    </div>
-  </section>
-
   <!-- END -->
   <section id="end" class="end" data-cam="end">
     <div class="end-in rv">
-      <h2 class="endmark">Go AFK.</h2>
+      <h2 class="endmark" aria-label="Go AFK."><span>G</span><span>o</span> <span>A</span><span>F</span><span>K</span><span>.</span></h2>
       <p class="body">Put SOL in a pool, close the tab, live your life.</p>
       <a class="btn primary" href="#pools">Pick a pool</a>
     </div>
@@ -236,8 +220,9 @@
     <div id="wList"></div>
   </div>
 </div>
+<button class="snd" id="snd" type="button" aria-label="Ocean sound" aria-pressed="false" title="Sound on"><i></i><i></i><i></i><i></i><i></i></button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="module" src="/js/afk.js?v=5"></script>
+<script type="module" src="/js/afk.js?v=6"></script>
 </body>
 </html>
