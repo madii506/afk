@@ -19,7 +19,7 @@
 <meta name="twitter:image" content="https://afk-fawn.vercel.app/img/og.jpg">
 <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/titan.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/afk.css?v=6">
+<link rel="stylesheet" href="/css/afk.css?v=7">
 </head>
 <body class="loading">
 <canvas id="world" aria-hidden="true"></canvas>
@@ -30,7 +30,7 @@
 <nav id="nav" class="top">
   <div class="nl"></div>
   <div class="links" id="links">
-    <a href="#how">How it works</a><a href="#pools">Pools</a><a href="#calc">Earnings</a><a href="#you">Your AFK</a><a href="#tech" class="opt">Tech</a><a href="#risk" class="opt">Risks</a><a href="#token" class="opt">$AFK</a>
+    <a href="#how">How it works</a><a href="#pools">Pools</a><a href="#calc">Earnings</a><a href="#you">Your AFK</a><a href="#tech" class="opt">Tech</a><a href="#risk" class="opt">Risks</a>
   </div>
   <div class="nr"><a class="btn primary sm" href="#pools" id="navGo">Go AFK</a><button class="btn ghost sm" id="walletBtn" type="button"><i class="wdot"></i><span id="walletLabel">Connect</span></button></div>
 </nav>
@@ -39,7 +39,7 @@
   <!-- HERO -->
   <section id="top" class="hero" data-cam="hero">
     <div class="hero-in">
-      <h1 class="mark rv" aria-label="AFK"><b class="mk"><span>A</span><span>F</span><span>K</span></b></h1>
+      <h1 class="mark rv" aria-label="AFK"><b class="mk" data-t="AFK"><span data-l="A">A</span><span data-l="F">F</span><span data-l="K">K</span></b></h1>
       <div class="ctas rv"><a class="btn primary" href="#pools">Go AFK</a><a class="btn ghost" href="#away">See how it works</a></div>
     </div>
   </section>
@@ -186,21 +186,13 @@
     </div>
   </section>
 
-  <!-- 08 $AFK -->
-  <section id="token" class="band" data-cam="risk">
-    <div class="wrap center rv">
-      <p class="eyebrow">08 — $AFK</p>
-      <h2>The coin.</h2>
-      <div id="caBox" class="ca-box"><p class="body">The $AFK contract address goes here and on X at launch. Anyone posting one before that is not us.</p></div>
-    </div>
-  </section>
-
   <!-- END -->
   <section id="end" class="end" data-cam="end">
     <div class="end-in rv">
-      <h2 class="endmark" aria-label="Go AFK."><span>G</span><span>o</span> <span>A</span><span>F</span><span>K</span><span>.</span></h2>
+      <h2 class="endmark" aria-label="Go AFK."><span data-l="G">G</span><span data-l="o">o</span> <span data-l="A">A</span><span data-l="F">F</span><span data-l="K">K</span><span data-l=".">.</span></h2>
       <p class="body">Put SOL in a pool, close the tab, live your life.</p>
       <a class="btn primary" href="#pools">Pick a pool</a>
+      <div id="caBox" class="ca-box" hidden></div>
     </div>
   </section>
 </main>
@@ -223,6 +215,6 @@
 <button class="snd" id="snd" type="button" aria-label="Ocean sound" aria-pressed="false" title="Sound on"><i></i><i></i><i></i><i></i><i></i></button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="module" src="/js/afk.js?v=6"></script>
+<script type="module" src="/js/afk.js?v=7"></script>
 </body>
 </html>
